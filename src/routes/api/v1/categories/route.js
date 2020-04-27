@@ -1,12 +1,11 @@
 const dbUtils = require('../../../../common/utils/db_utils');
-const constants = require('../../../../common/constants');
 const express = require('express');
 const route = express.Router();
 
 // GET
-route.get(`${constants.apiString}/categories`, (req, res) => {
+route.get(`${process.env.API}/categories`, (req, res) => {
     const connection = dbUtils.dbConnect();
-    connection.query('SELECT * FROM category', (err, rows,) => {
+    connection.query('SELECT * FROM category', (err, rows, ) => {
         if (err) {
             console.error(err);
             res.sendStatus(500);
@@ -17,18 +16,12 @@ route.get(`${constants.apiString}/categories`, (req, res) => {
 })
 
 // POST
-route.post(`${constants.apiString}/category`, (req, res) => {
-    let queryString = 'INSERT INTO category VALUES (';
+route.post(`${process.env.API}/category`, (req, res) => {
+    let queryString = 'INSERT INTO category (title, description) VALUES (';
     if (req.body && req.body.title) {
-        if (req.body.title) {
-            queryString += `title = ${req.body.title},`
-        }
-        if (req.body.description) {
-            queryString += `description = ${req.body.description},`
-        }
 
-        //remove trailing comma
-        queryString = removeTrailingCharacters(queryString, ',').concat(`)`);
+        queryString += `${req.body.title},`
+        queryString += `${req.body.description || null}`
 
         // res.send(queryString);
         dbUtils.dbConnect().query(queryString, (err, rows) => {
@@ -40,7 +33,7 @@ route.post(`${constants.apiString}/category`, (req, res) => {
 })
 
 // PUT
-route.put(`${constants.apiString}/category/:id`, (req, res) => {
+route.put(`${process.env.API}/category/:id`, (req, res) => {
     let queryString = 'UPDATE category set ';
     if (req.body
         && (req.body.title
@@ -65,7 +58,7 @@ route.put(`${constants.apiString}/category/:id`, (req, res) => {
 })
 
 // DELETE
-route.delete(`${constants.apiString}/category/:id`, (req, res) => {
+route.delete(`${process.env.API}/category/:id`, (req, res) => {
     const connection = dbUtils.dbConnect();
     connection.query(`DELETE FROM category where id = ${req.params.id}`, (err, rows) => {
         if (err) {
@@ -85,5 +78,5 @@ route.delete(`${constants.apiString}/category/:id`, (req, res) => {
     })
 })
 
-const categoryRoute = route;
-module.exports = categoryRoute;
+const authRoute = route;
+module.exports = authRoute;

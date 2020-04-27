@@ -1,19 +1,19 @@
 const dbUtils = require('../../../../common/utils/db_utils');
-const constants = require('../../../../common/constants');
+const auth_utils = require('../../../../common/utils/auth_utils');
 const express = require('express');
 const route = express.Router();
 
 // GET
-route.get(`${constants.apiString}/users`, (req, res) => {
+route.get(`${process.env.API}/users`, (req, res) => {
     const connection = dbUtils.dbConnect();
-    connection.query('SELECT * FROM user', (err, rows,) => {
+    connection.query('SELECT * FROM user', (err, rows, ) => {
         res.json(rows);
     });
 })
-route.get(`"${constants.apiString}/users/:id`, (req, res) => {
+route.get(`${process.env.API}/users/:id`, (req, res) => {
     const searchTerm = req.params.id;
     const connection = dbUtils.dbConnect();
-    connection.query('SELECT * FROM user Where id = ?', [searchTerm], (err, rows,) => {
+    connection.query('SELECT * FROM user WHERE id = ?', [searchTerm], (err, rows, ) => {
         if (err) {
             console.error(err);
             res.sendStatus(500);
@@ -26,32 +26,10 @@ route.get(`"${constants.apiString}/users/:id`, (req, res) => {
 })
 
 // POST
-route.post(`'${constants.apiString}/user`, (req, res) => {
-    let queryString = 'INSERT INTO user VALUSE (';
-    if (req.body
-        && req.body.firstName
-        && req.body.lastName) {
-        if (req.body.firstName) {
-            queryString += `first_name = ${req.body.firstName},`
-        }
-        if (req.body.description) {
-            queryString += `last_name = ${req.body.lastName},`
-        }
 
-        //remove trailing comma
-        queryString = removeTrailingCharacters(queryString, ',').concat(`)`);
-
-        // res.send(queryString);
-        dbConnect().query(queryString, (err, rows) => {
-            res.json(rows);
-        });
-    } else {
-        res.sendStatus(400);
-    }
-})
 
 // PUT
-route.put(`${constants.apiString}/user/:id`, (req, res) => {
+route.put(`${process.env.API}/user/`, auth_utils.authenicateToken, (req, res) => {
     let queryString = 'UPDATE user set ';
     if (req.body
         && (req.body.firstName
@@ -64,10 +42,14 @@ route.put(`${constants.apiString}/user/:id`, (req, res) => {
         }
 
         //remove trailing comma
-        queryString = removeTrailingCharacters(queryString, ',').concat(` where id = ${req.params.id}`);
+        queryString = removeTrailingCharacters(queryString, ',').concat(` where id = ${req.token.id}`);
 
         // res.send(queryString);
         dbConnect().query(queryString, (err, rows) => {
+            if (err) {
+                res.status(500).send(err);
+                return;
+            }
             res.json(rows);
         });
     } else {
@@ -76,15 +58,15 @@ route.put(`${constants.apiString}/user/:id`, (req, res) => {
 })
 
 // DELETE
-route.delete(`${constants.apiString}/user/:id`, (req, res) => {
+route.delete(`${process.env.API}/user/`, auth_utils.authenicateToken, (req, res) => {
     const connection = dbConnect();
-    connection.query(`DELETE FROM user where id = ${req.params.id}`, (err, rows) => {
+    connection.query(`DELETE FROM user where id = ${req.token.id}`, (err, rows) => {
         if (err) {
             console.error(err);
-            res.sendStatus(500);
+            res.status(500).send(err);
             return;
         }
-        connection.query(`DELETE FROM br_user_list WHERE user_id = ${req.params.id}`, (err, rows) => {
+        connection.query(`DELETE FROM br_user_list WHERE user_id = ${req.token.id}`, (err, rows) => {
             if (err) {
                 console.error(err);
                 res.sendStatus(500);

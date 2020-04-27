@@ -1,4 +1,4 @@
-const constants = require('./src/common/constants')
+require('dotenv').config();
 
 const morgan = require('morgan')
 const express = require('express')
@@ -25,6 +25,6 @@ app.get("/", (req, res) => {
     res.send("Hello world");
 })
 
-app.listen(constants.port, () => {
-    console.log(`Listening on port ${constants.port}...`);
+app.listen(process.env.TODO_PORT, () => {
+    console.log(`Listening on port ${process.env.TODO_PORT}...`);
 })

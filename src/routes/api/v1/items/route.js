@@ -1,16 +1,15 @@
 const dbUtils = require('../../../../common/utils/db_utils');
-const constants = require('../../../../common/constants');
 const express = require('express');
 const route = express.Router();
 
 // GET
-route.get(`${constants.apiString}/items/:id`, (req, res) => {
+route.get(`${process.env.API}/items/:id`, (req, res) => {
     const itemId = req.params.id;
     const connection = dbUtils.dbConnect();
-    connection.query('SELECT * FROM item where id = ?', [itemId], (err, rows,) => {
+    connection.query('SELECT * FROM item where id = ?', [itemId], (err, rows, ) => {
         if (err) {
             console.error(err);
-            res.sendStatus(500);
+            res.status(500).send(err);
             return;
         } else if (rows.length < 1) {
             res.sendStatus(404);
@@ -21,41 +20,33 @@ route.get(`${constants.apiString}/items/:id`, (req, res) => {
 })
 
 // POST
-route.post(`${constants.apiString}/item`, (req, res) => {
-    let queryString = 'INSERT INTO item VALUES (';
+route.post(`${process.env.API}/item`, (req, res) => {
+    let queryString = 'INSERT INTO item (title, description, quantity, category_id, list_id, status) VALUES (';
     if (req.body
         && req.body.title
         && req.body.list_id) {
-        if (req.body.title) {
-            queryString += `title = ${req.body.title},`
-        }
-        if (req.body.description) {
-            queryString += `description = ${req.body.description},`
-        }
-        if (req.body.quantity) {
-            queryString += `quantity = ${req.body.quantity},`
-        }
-        if (req.body.category_id) {
-            queryString += `category_id = ${req.body.category_id},`
-        }
-        if (req.body.status) {
-            queryString += `status = ${req.body.status},`
-        }
-
-        //remove trailing comma
-        queryString = removeTrailingCharacters(queryString, ',').concat(`)`);
+        queryString += `${req.body.title},`
+        queryString += `${req.body.description || null},`
+        queryString += `${req.body.quantity || null},`
+        queryString += `${req.body.category_id || null},`
+        queryString += `${req.body.list_id},`
+        queryString += `${req.body.status || null},`
 
         // res.send(queryString);
         dbUtils.dbConnect().query(queryString, (err, rows) => {
+            if (err) {
+                res.status(500).send(err);
+                return;
+            }
             res.json(rows);
         });
     } else {
-        res.sendStatus(400);
+        res.status(400).send('Item title and list id are required');
     }
 })
 
 // PUT
-route.put(`${constants.apiString}/item/:id`, (req, res) => {
+route.put(`${process.env.API}/item/:id`, (req, res) => {
     let queryString = 'UPDATE item set ';
     if (req.body
         && (req.body.title
@@ -84,6 +75,10 @@ route.put(`${constants.apiString}/item/:id`, (req, res) => {
 
         // res.send(queryString);
         dbUtils.dbConnect().query(queryString, (err, rows) => {
+            if (err) {
+                res.status(500).send(err);
+                return;
+            }
             res.json(rows);
         });
     } else {
@@ -92,12 +87,12 @@ route.put(`${constants.apiString}/item/:id`, (req, res) => {
 })
 
 // DELETE
-route.delete(`${constants.apiString}/item/:id`, (req, res) => {
+route.delete(`${process.env.API}/item/:id`, (req, res) => {
     const connection = dbUtils.dbConnect();
     connection.query(`DELETE FROM item where id = ${req.params.id}`, (err, rows) => {
         if (err) {
             console.error(err);
-            res.sendStatus(500);
+            res.status(500).send(err);
             return;
         }
         console.log('Items deleted', rows);

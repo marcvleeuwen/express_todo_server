@@ -1,15 +1,13 @@
-const constants = require('../constants');
-
 const mysql = require("mysql")
 module.exports =
     {
         dbConnect: function () {
             return mysql.createPool({
-                connectionLimit: 10,
-                host: 'localhost',
-                user: 'root',
-                password: 'root',
-                database: `${constants.env}_todo`
+                connectionLimit: process.env.DB_CONNECTION_LIMIT,
+                host: process.env.DB_HOST,
+                user: process.env.DB_USER,
+                password: process.env.DB_PASS,
+                database: process.env.DB_SCHEMA
             });
         }
     }
