@@ -6,7 +6,7 @@ const route = express.Router();
 route.get(`${process.env.API}/items/:id`, (req, res) => {
     const itemId = req.params.id;
     const connection = dbUtils.dbConnect();
-    connection.query('SELECT * FROM item where id = ?', [itemId], (err, rows, ) => {
+    connection.query('SELECT id, category_id, list_id, title, description, quantity, status FROM item where id = ?', [itemId], (err, rows, ) => {
         if (err) {
             console.error(err);
             res.status(500).send(err);

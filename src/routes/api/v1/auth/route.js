@@ -1,18 +1,24 @@
 const dbUtils = require('../../../../common/utils/db_utils');
 const auth_utils = require('../../../../common/utils/auth_utils');
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const route = express.Router();
 const bcrypt = require('bcrypt');
 
+// GET
+route.get(`${process.env.API}/auth/verify`, auth_utils.authenicateToken, async (req, res) => {
+    console.log(req.headers);
+    auth_utils.authenicateToken(req.token);
+    res.send('done');
+})
+
 // POST
-route.post(`${process.env.API}/login`, async (req, res) => {
+route.post(`${process.env.API}/auth/login`, async (req, res) => {
     // let user = {};
     if (req.body
         && req.body.username
         && req.body.password) {
         const connection = dbUtils.dbConnect();
-        await connection.query(`SELECT id, first_name, last_name, username, email, password FROM user WHERE username = '${req.body.username}' OR email = '${req.body.username}'`, (err, rows) => {
+        await connection.query(`SELECT id, first_name, last_name, username, email, password, user_role FROM user WHERE username = '${req.body.username}' OR email = '${req.body.username}'`, (err, rows) => {
             if (err) {
                 console.error(err);
                 res.sendStatus(500);
@@ -24,7 +30,7 @@ route.post(`${process.env.API}/login`, async (req, res) => {
                 bcrypt.compare(req.body.password, rows[0].password, (err, same) => {
                     if (same) {
                         const user = JSON.stringify(rows[0]);
-                        const token = auth_utils(user);
+                        const token = auth_utils.generateToken(user);
                         res.status(200).json({ token });
                     } else {
                         res.status(400).send('Username or password is incorrect');
@@ -38,7 +44,7 @@ route.post(`${process.env.API}/login`, async (req, res) => {
     }
 })
 
-route.post(`${process.env.API}/signup`, async (req, res) => {
+route.post(`${process.env.API}/auth/signup`, async (req, res) => {
     try {
         let queryString = 'INSERT INTO user (first_name, last_name, username, email, password) VALUES (';
         if (req.body
@@ -75,7 +81,7 @@ route.post(`${process.env.API}/signup`, async (req, res) => {
 
 
 // PUT
-route.put(`${process.env.API}/reset-password`, auth_utils.authenicateToken, async (req, res) => {
+route.put(`${process.env.API}/auth/reset-password`, auth_utils.authenicateToken, async (req, res) => {
     try {
         let queryString = 'UPDATE user SET ';
         if (req.body

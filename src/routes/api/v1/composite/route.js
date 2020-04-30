@@ -7,17 +7,24 @@ const route = express.Router();
 route.get(`${process.env.API}/user-lists/:userId`, (req, res) => {
     const userId = req.params.userId;
     const connection = dbUtils.dbConnect();
-    connection.query('select l.* from list l join br_user_list br where br.user_id = ?', [userId], (err, rows) => {
+    connection.query('select l.id, l.title, l.description, l.created_by, 0 as user_count from list l join br_user_list br where br.user_id = ?', [userId], (err, rows) => {
         if (err) {
             console.error(err);
             res.status(500).send(err);
         } else if (rows.length > 0) {
-            res.json(rows);
+            const listIds = rows.map(row => row.id);
+            let out = rows;
+            connection.query(`select count(user_id) as user_count from br_user_list where list_id in (${listIds})`, [listIds], (err, rows) => {
+                out.forEach((row, index) => row.user_count = rows[index].user_count);
+                res.json(out);
+                return;
+            });
         } else {
             res.sendStatus(404);
         }
     });
 })
+
 route.get(`${process.env.API}/list-items/:listId`, (req, res) => {
     const userId = req.params.listId;
     const connection = dbUtils.dbConnect();
@@ -37,7 +44,7 @@ route.get(`${process.env.API}/list-items/:listId`, (req, res) => {
         }
 
         // get items
-        connection.query('select id, category_id, title, description, status from item where list_id = ?', list[0].id, (err, rows) => {
+        connection.query('select id, category_id, title, description, status, quantity from item where list_id = ?', list[0].id, (err, rows) => {
             if (err) {
                 console.error(err);
                 res.status(500).send(err);
@@ -69,6 +76,7 @@ route.get(`${process.env.API}/list-items/:listId`, (req, res) => {
         })
     });
 })
+
 route.get(`${process.env.API}/list-users/:listId`, (req, res) => {
     const listId = req.params.listId;
     const connection = dbUtils.dbConnect();
@@ -90,9 +98,9 @@ route.post(`${process.env.API}/list-add-user`, (req, res) => {
     if (req.body
         && req.body.userId
         && req.body.listId) {
-            queryString += `${req.body.userId},`
-            queryString += `${req.body.listId}`
-            queryString += `${req.body.role || null}`
+        queryString += `${req.body.userId},`
+        queryString += `${req.body.listId}`
+        queryString += `${req.body.role || null}`
 
         // res.send(queryString);
         dbUtils.dbConnect().query(`${queryString}`, (err, rows) => {

@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 module.exports = {
     generateToken: function(data) {
-        return jwt.sign(data, process.env.ACCESS_TOKEN_SECRET);
+        return jwt.sign(data, process.env.ACCESS_TOKEN_SECRET, {algorithm: 'HS512'});
     },
 
     authenicateToken: function (req, res, next) {
@@ -15,6 +15,7 @@ module.exports = {
         jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, details) => {
             if(err) {
                 res.sendStatus(403);
+                return;
             }
             req.token = details;
             next();
