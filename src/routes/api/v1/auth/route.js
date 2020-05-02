@@ -79,26 +79,38 @@ route.post(`${process.env.API}/auth/signup`, async (req, res) => {
     }
 })
 
-
-// PUT
-route.put(`${process.env.API}/auth/reset-password`, auth_utils.authenicateToken, async (req, res) => {
+route.post(`${process.env.API}/auth/reset-password`, async (req, res) => {
     try {
-        let queryString = 'UPDATE user SET ';
+        console.log(req.body.password + ' ' + req.body.password2);
         if (req.body
+            && req.body.username
+            && req.body.email
             && req.body.password
             && req.body.password2
-            && req.body.password === req.body.password) {
+            && req.body.password === req.body.password2) {
 
             const passwordHash = await bcrypt.hash(req.body.password, 10);
-            queryString += `password = '${passwordHash}' where id= ${req.token.id};`
 
-            // res.send(queryString);
-            dbUtils.dbConnect().query(queryString, (err, rows) => {
+            // Find user first
+            dbUtils.dbConnect().query(`SELECT id FROM user WHERE username = '${req.body.username}' AND email = '${req.body.email}';`, (err, rows) => {
                 if (err) {
-                    res.status(500).send(err);
+                    console.log(err);
+                    res.sendStatus(500);
                     return;
                 }
-                res.status(200).send('Password updated');
+                if (rows.length === 1) {
+                    // update user password
+                    dbUtils.dbConnect().query(`UPDATE user SET password = '${passwordHash}' where username = '${req.body.username}' AND email = '${req.body.email}';`, (err, rows) => {
+                        if (err) {
+                            console.log(err);
+                            res.sendStatus(500);
+                            return;
+                        }
+                        res.status(200).send('Password updated');
+                    });
+                } else {
+                    res.sendStatus(404);
+                }
             });
         } else {
             res.status(400).send('Please ensure that both passwords match');
@@ -107,6 +119,9 @@ route.put(`${process.env.API}/auth/reset-password`, auth_utils.authenicateToken,
         res.sendStatus(500);
     }
 })
+
+
+// PUT
 
 const categoryRoute = route;
 module.exports = categoryRoute;

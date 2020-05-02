@@ -17,14 +17,16 @@ route.get(`${process.env.API}/lists`, (req, res) => {
 route.get(`${process.env.API}/lists/:id`, (req, res) => {
     const listId = req.params.id;
     const connection = dbUtils.dbConnect();
-    connection.query('SELECT * FROM list Where id = ?', [listId], (err, rows) => {
-        if (err) {
-            console.error(err);
-            res.status(500).send(err);
-            return;
-        }
-        res.json(rows);
-    });
+    if (listId) {
+        connection.query('SELECT * FROM list Where id = ?', [listId], (err, rows) => {
+            if (err) {
+                console.error(err);
+                res.status(500).send(err);
+                return;
+            }
+            res.json(rows);
+        });
+    }
 })
 
 // POST

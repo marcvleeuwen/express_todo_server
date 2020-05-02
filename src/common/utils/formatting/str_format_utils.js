@@ -3,17 +3,9 @@ module.exports = {
         let response = {
             title: list[0].title,
             description: list[0].description,
-            categories: []
+            categories,
+            items
         }
-
-        categories.forEach(category => {
-            response.categories.push({
-                id: category.id,
-                title: category.title,
-                description: category.description,
-                items: items.filter(item => item.category_id === category.id)
-            })
-        });
 
         return response;
     },

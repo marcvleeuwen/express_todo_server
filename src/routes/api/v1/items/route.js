@@ -38,7 +38,7 @@ route.post(`${process.env.API}/item`, (req, res) => {
                 res.status(500).send(err);
                 return;
             }
-            res.json(rows);
+            res.json(rows[0]);
         });
     } else {
         res.status(400).send('Item title and list id are required');
@@ -79,7 +79,7 @@ route.put(`${process.env.API}/item/:id`, (req, res) => {
                 res.status(500).send(err);
                 return;
             }
-            res.json(rows);
+            res.json(rows[0]);
         });
     } else {
         res.sendStatus(400);
