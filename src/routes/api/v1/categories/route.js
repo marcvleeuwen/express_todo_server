@@ -5,7 +5,7 @@ const route = express.Router();
 // GET
 route.get(`${process.env.API}/categories`, (req, res) => {
     const connection = dbUtils.dbConnect();
-    connection.query('SELECT * FROM category', (err, rows, ) => {
+    connection.query('SELECT id, title, description FROM category', (err, rows, ) => {
         if (err) {
             console.error(err);
             res.sendStatus(500);

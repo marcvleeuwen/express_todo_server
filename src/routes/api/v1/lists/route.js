@@ -1,6 +1,8 @@
 const dbUtils = require('../../../../common/utils/db_utils');
 const express = require('express');
 const route = express.Router();
+const auth_utils = require('../../../../common/utils/auth_utils');
+const stringUtils = require('../../../../common/utils/formatting/str_format_utils');
 
 // GET
 route.get(`${process.env.API}/lists`, (req, res) => {
@@ -30,27 +32,28 @@ route.get(`${process.env.API}/lists/:id`, (req, res) => {
 })
 
 // POST
-route.post(`${process.env.API}/list`, (req, res) => {
-    let queryString = 'INSERT INTO list(title, description) VALUES (';
+route.post(`${process.env.API}/list`, auth_utils.authenicateToken, (req, res) => {
+    let queryString = 'INSERT INTO list(title, description, created_by) VALUES (';
     if (req.body
-        && req.body.title
-        && req.body.userId) {
-        queryString += `${req.body.title},`
-        queryString += `${req.body.description || null}`
+        && req.body.title) {
+        queryString += `'${req.body.title}',`
+        queryString += `'${req.body.description || null}',`
+        queryString += `'${req.token.id}');`
 
-        // res.send(queryString);
         dbUtils.dbConnect().query(queryString, (err, rows) => {
-            dbUtils.dbConnect().query(`INSERT INTO br_user_list (user_id, list_id, role) values (${req.body.userId}, ${rows[0].id}, 2)`, (err, rows) => {
-                if (err) {
-                    console.log('Error inserting into bridge table', err);
-                    res.status(500).send(err);
-                }
-            });
             if (err) {
-                res.status(500).send(err);
+                res.sendStatus(500);
                 return;
+            } else {
+                dbUtils.dbConnect().query(`INSERT INTO br_user_list (user_id, list_id, user_role) values (${req.token.id}, ${rows.insertId}, 2)`, (err, rows) => {
+                    if (err) {
+                        console.error('Error inserting into bridge table', err);
+                        res.sendStatus(500);
+                        return;
+                    }
+                    res.sendStatus(200);
+                });
             }
-            res.json(rows);
         });
     } else {
         res.sendStatus(400);
@@ -64,14 +67,14 @@ route.put(`${process.env.API}/list/:id`, (req, res) => {
         && (req.body.title
             || req.body.description)) {
         if (req.body.title) {
-            queryString += `title = ${req.body.title},`
+            queryString += `title = '${req.body.title}',`
         }
         if (req.body.description) {
-            queryString += `description = ${req.body.description},`
+            queryString += `description = '${req.body.description}',`
         }
 
         //remove trailing comma
-        queryString = removeTrailingCharacters(queryString, ',').concat(` where id = ${req.params.id}`);
+        queryString = stringUtils.removeTrailingCharacters(queryString, ',').concat(` where id = ${req.params.id}`);
 
         // res.send(queryString);
         dbUtils.dbConnect().query(queryString, (err, rows) => {
@@ -79,7 +82,7 @@ route.put(`${process.env.API}/list/:id`, (req, res) => {
                 res.status(500).send(err);
                 return;
             }
-            res.json(rows);
+            res.sendStatus(204);
         });
     } else {
         res.sendStatus(400);
@@ -87,7 +90,7 @@ route.put(`${process.env.API}/list/:id`, (req, res) => {
 })
 
 // DELETE
-route.delete(`${process.env.API}/lists/:id`, (req, res) => {
+route.delete(`${process.env.API}/list/:id`, (req, res) => {
     const connection = dbUtils.dbConnect();
     connection.query(`DELETE FROM list where id = ${req.params.id}`, (err, rows) => {
         if (err) {
@@ -101,20 +104,41 @@ route.delete(`${process.env.API}/lists/:id`, (req, res) => {
                 res.status(500).send(err);
                 return;
             }
-            console.log('Bridge rows deleted', rows);
-        })
+        });
         connection.query(`DELETE FROM item WHERE list_id = ${req.params.id}`, (err, rows) => {
             if (err) {
                 console.error(err);
                 res.status(500).send(err);
                 return;
             }
-            console.log('Item rows deleted', rows);
             res.sendStatus(204);
-        })
-        res.json(rows);
+        });
     });
 })
+
+route.delete(`${process.env.API}/remove-items/:listId`, (req, res) => {
+    if (req.params.listId) {
+        let ids = [];
+        dbUtils.dbConnect().query(`SELECT id FROM item WHERE list_id = ${req.params.listId};`, (err, rows) => {
+            if (err) {
+                console.error(err);
+                res.sendStatus(500);
+                return;
+            }
+            this.ids = rows.map(row => row.id);
+            dbUtils.dbConnect().query(`DELETE FROM item WHERE id IN (${rows.map(row => row.id)});`, (err, rows) => {
+                if (err) {
+                    console.error(err);
+                    res.sendStatus(500);
+                    return;
+                }
+                res.sendStatus(204);
+            });
+        });
+    } else {
+        res.sendStatus(400);
+    }
+});
 
 const listRoute = route;
 module.exports = listRoute;

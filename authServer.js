@@ -26,7 +26,7 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(helmet());
 app.use(cors(auth_utils.corsOptions));
-app.use(limiter);
+// app.use(limiter);
 app.use(compression());
 
 app.get(`${process.env.API}/auth/ping`, (req, res) => {

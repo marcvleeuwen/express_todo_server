@@ -1,8 +1,9 @@
 module.exports = {
     formatListItems: function (list, items, categories) {
         let response = {
-            title: list[0].title,
-            description: list[0].description,
+            id: list.id,
+            title: list.title,
+            description: list.description,
             categories,
             items
         }

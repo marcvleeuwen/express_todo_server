@@ -12,7 +12,7 @@ const fs = require('fs');
 const RateLimit = require('express-rate-limit');
 
 const limiter = new RateLimit({
-    windowMs: 10 * 60 * 1000, // 10 minutes 
+    windowMs: 5 * 60 * 1000, // 5 minutes 
     max: 100, // limit each IP to 100 requests per windowMs 
     delayMs: 0, // disable delaying — full speed until the max limit is  reached
     message: 'WOW, You\'re active!!! I need a break... Please try again later.'

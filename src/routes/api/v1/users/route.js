@@ -9,11 +9,12 @@ route.get(`${process.env.API}/users`, auth_utils.authenicateToken, (req, res) =>
     connection.query('SELECT id, first_name, last_name, username FROM user', (err, rows, ) => {
         res.json(rows);
     });
-})
-route.get(`${process.env.API}/users/:q`, (req, res) => {
+});
+
+route.get(`${process.env.API}/users/:q`, auth_utils.authenicateToken, (req, res) => {
     const searchTerm = req.params.q;
     const connection = dbUtils.dbConnect();
-    connection.query(`SELECT id, first_name, last_name, username FROM user WHERE id = '${searchTerm}' OR username = '${searchTerm}' OR email = '${searchTerm}'`, (err, rows, ) => {
+    connection.query(`SELECT id, first_name, last_name, username FROM user WHERE id = '${searchTerm}' OR username LIKE '%${searchTerm}%' LIMIT 0,10;`, (err, rows, ) => {
         if (err) {
             console.error(err);
             res.sendStatus(500);
@@ -23,9 +24,27 @@ route.get(`${process.env.API}/users/:q`, (req, res) => {
             res.sendStatus(404);
         }
     });
-})
+});
 
 // POST
+route.post(`${process.env.API}/usersById`, auth_utils.authenicateToken, (req, res) => {
+    if (req.body.userIds) {
+        const connection = dbUtils.dbConnect();
+        connection.query(`SELECT id, first_name, last_name, username FROM user WHERE id IN (${userIds});`, (err, rows, ) => {
+            if (err) {
+                console.error(err);
+                res.sendStatus(500);
+                return;
+            } else if (rows.length < 1) {
+                res.sendStatus(404);
+                return;
+            }
+                res.json(rows);
+        });
+    } else {
+        res.sendStatus(400);
+    }
+});
 
 
 // PUT
@@ -84,9 +103,7 @@ route.delete(`${process.env.API}/user/`, auth_utils.authenicateToken, (req, res)
                     res.sendStatus(500);
                     return;
                 }
-                console.log('rows deleted', rows);
             })
-            console.log('User deleted', rows);
             res.sendStatus(204);
         });
     } else {

@@ -8,71 +8,71 @@ const route = express.Router();
 route.get(`${process.env.API}/user-lists/:userId`, (req, res) => {
     const userId = req.params.userId;
     const connection = dbUtils.dbConnect();
-    connection.query('select l.id, l.title, l.description, l.created_by, 0 as user_count from list l join br_user_list br where br.user_id = ?', [userId], (err, rows) => {
+    connection.query(`SELECT l.id, l.title, l.description, l.created_by, 0 AS user_count FROM list l WHERE id IN (SELECT list_id FROM br_user_list WHERE user_id = ${userId});`, (err, rows) => {
         if (err) {
             console.error(err);
             res.status(500).send(err);
         } else if (rows.length > 0) {
             const listIds = rows.map(row => row.id);
             let out = rows;
-            connection.query(`select count(user_id) as user_count from br_user_list where list_id in (${listIds})`, [listIds], (err, rows) => {
-                out.forEach((row, index) => row.user_count = rows[index].user_count);
-                res.json(out);
-                return;
+            connection.query(`SELECT count(user_id) AS user_count FROM br_user_list WHERE list_id IN (${listIds}) GROUP BY list_id`, [listIds], (err, rows) => {
+                if (err) {
+                    console.error('user_count', err);
+                    res.sendStatus(500);
+                    return;
+                } else {
+                    out.forEach((row, index) => {
+                        row.user_count = rows[index] && rows[index].user_count || 0
+                    });
+                    res.status(200).json(out);
+                    return;
+                }
             });
         } else {
-            res.sendStatus(404);
+            res.sendStatus(204);
         }
     });
 })
 
-route.get(`${process.env.API}/list-items/:listId`, (req, res) => {
-    const userId = req.params.listId;
+route.get(`${process.env.API}/list-items/:listId`, auth_utils.authenicateToken, (req, res) => {
     const connection = dbUtils.dbConnect();
-    let list = [];
-    let items = [];
-    let categories = [];
 
     // get list
-    connection.query('select l.id, title, description from list l join br_user_list br where br.user_id = ?', [userId], (err, rows) => {
+    connection.query(`SELECT l.id, l.title, l.description, l.created_by FROM list l where l.id IN (SELECT list_id FROM br_user_list br WHERE br.list_id = ${req.params.listId});`, (err, listRows) => {
         if (err) {
             console.error(err);
             res.status(500).send(err);
-        } else if (rows.length > 0) {
-            list = rows;
-        } else {
+            return;
+        } else if (listRows.length === 0) {
             res.sendStatus(404);
+            return;
         }
 
         // get items
-        connection.query('select id, category_id, title, description, status, quantity from item where list_id = ?', list[0].id, (err, rows) => {
+        connection.query(`SELECT id, category_id, title, description, status, quantity FROM item WHERE list_id = ${req.params.listId}`, (err, itemRows) => {
             if (err) {
                 console.error(err);
                 res.status(500).send(err);
-            } else if (rows.length > 0) {
-                items = rows;
-            } else {
-                res.sendStatus(404);
+                return;
+            } else if (itemRows.length === 0) {
+                res.status(200).json(stringUtils.formatListItems(listRows[0], [], []));
+                return;
             }
-            const catIds = [];
-            items.forEach(item => {
-                if (!catIds.includes(item.category_id)) {
-                    catIds.push(item.category_id);
-                }
-            });
+
+            const catIds = Array.from(new Set(itemRows.map(row => row && row.category_id)));
 
             // get categories
-            connection.query('select id, title, description from category where id in (?)', [catIds], (err, rows) => {
-                if (err) {
-                    console.error(err);
-                    res.status(500).send(err);
-                } else if (rows.length > 0) {
-                    categories = rows;
-                } else {
-                    res.sendStatus(404);
-                }
+            if (catIds.length === 0 || !catIds[0]) {
+                res.status(200).json(stringUtils.formatListItems(listRows[0], itemRows, [{ id: undefined, title: '', description: '' }]));
+                return;
+            }
 
-                res.json(stringUtils.formatListItems(list, items, categories));
+            connection.query(`SELECT id, title, description FROM category WHERE id IN (${catIds});`, (err, categoryRows) => {
+                if (err) {
+                    res.status(500).send(err);
+                    return;
+                }
+                res.json(stringUtils.formatListItems(listRows[0], itemRows, categoryRows));
             })
         })
     });
@@ -81,7 +81,7 @@ route.get(`${process.env.API}/list-items/:listId`, (req, res) => {
 route.get(`${process.env.API}/list-users/:listId`, (req, res) => {
     const listId = req.params.listId;
     const connection = dbUtils.dbConnect();
-    connection.query('select distinct user.id, first_name, last_name from user join br_user_list br where br.list_id = ?', [listId], (err, rows) => {
+    connection.query(`SELECT DISTINCT id, first_name, last_name, username FROM user WHERE id IN (SELECT user_id FROM br_user_list WHERE list_id = ${listId});`, (err, rows) => {
         if (err) {
             console.error(err);
             res.status(500).send(err);
@@ -95,18 +95,18 @@ route.get(`${process.env.API}/list-users/:listId`, (req, res) => {
 
 // POST
 route.post(`${process.env.API}/list-add-user`, (req, res) => {
-    let queryString = 'INSERT INTO br_user_list(user_id, list_id, role) VALUES (';
+    let queryString = 'INSERT INTO br_user_list(user_id, list_id, user_role) VALUES (';
     if (req.body
         && req.body.userId
         && req.body.listId) {
         queryString += `${req.body.userId},`
-        queryString += `${req.body.listId}`
-        queryString += `${req.body.role || null}`
+        queryString += `${req.body.listId},`
+        queryString += `${req.body.role || null});`
 
         // res.send(queryString);
         dbUtils.dbConnect().query(`${queryString}`, (err, rows) => {
             if (err) {
-                console.log('Error inserting into bridge table', err);
+                console.error('Error inserting into bridge table', err);
                 res.status(500).send(err);
                 return;
             }
@@ -122,20 +122,18 @@ route.post(`${process.env.API}/list-add-user`, (req, res) => {
 
 // DELETE
 route.delete(`${process.env.API}/list-remove-user`, auth_utils.authenicateToken, (req, res) => {
-    if (req.query.userId === req.token.id || process.env.admin_roles.includes(req.token.user_role)) {
-        const connection = dbConnect();
-        connection.query(`DELETE FROM br_user_list WHERE user_id = ${req.query.userId} AND list_id = ${req.query.listId}`, (err, rows) => {
+    if (req.body.list.created_by === req.token.id || process.env.admin_roles.includes(req.token.user_role)) {
+        const connection = dbUtils.dbConnect();
+        connection.query(`DELETE FROM br_user_list WHERE user_id = ${req.body.userId} AND list_id = ${req.body.list.id}`, (err, rows) => {
             if (err) {
                 console.error(err);
                 res.sendStatus(500);
                 return;
             }
-            console.log('rows deleted', rows);
-        })
-        console.log('User deleted', rows);
-        res.sendStatus(204);
+            res.sendStatus(204);
+        });
     } else {
-        req.sendStatus(403);
+        res.sendStatus(403);
     }
 })
 

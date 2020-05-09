@@ -6,9 +6,8 @@ const bcrypt = require('bcrypt');
 
 // GET
 route.get(`${process.env.API}/auth/verify`, auth_utils.authenicateToken, async (req, res) => {
-    console.log(req.headers);
     auth_utils.authenicateToken(req.token);
-    res.send('done');
+    res.sendStatus(204);
 })
 
 // POST
@@ -69,7 +68,7 @@ route.post(`${process.env.API}/auth/signup`, async (req, res) => {
                     res.status(500).send(err);
                     return;
                 }
-                res.status(201).send('User created successfully');
+                res.sendStatus(201);
             });
         } else {
             res.sendStatus(400);
@@ -81,7 +80,6 @@ route.post(`${process.env.API}/auth/signup`, async (req, res) => {
 
 route.post(`${process.env.API}/auth/reset-password`, async (req, res) => {
     try {
-        console.log(req.body.password + ' ' + req.body.password2);
         if (req.body
             && req.body.username
             && req.body.email
@@ -94,7 +92,7 @@ route.post(`${process.env.API}/auth/reset-password`, async (req, res) => {
             // Find user first
             dbUtils.dbConnect().query(`SELECT id FROM user WHERE username = '${req.body.username}' AND email = '${req.body.email}';`, (err, rows) => {
                 if (err) {
-                    console.log(err);
+                    console.error(err);
                     res.sendStatus(500);
                     return;
                 }
@@ -102,7 +100,7 @@ route.post(`${process.env.API}/auth/reset-password`, async (req, res) => {
                     // update user password
                     dbUtils.dbConnect().query(`UPDATE user SET password = '${passwordHash}' where username = '${req.body.username}' AND email = '${req.body.email}';`, (err, rows) => {
                         if (err) {
-                            console.log(err);
+                            console.error(err);
                             res.sendStatus(500);
                             return;
                         }
